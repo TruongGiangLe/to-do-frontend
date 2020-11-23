@@ -5,7 +5,7 @@
       <b-row>
         <b-col sm="6" offset="3">
           <b-jumbotron>
-            <h3> create your account </h3>
+            <h3> Your account </h3>
             <br>
             <b-form @submit.prevent="handleSubmit">
               <b-row>
@@ -15,8 +15,9 @@
               <b-col sm="8">
                 <b-form-input
                   id="input-1"
-                  v-model="newAccount.userName"
+                  v-model="curAccount.userName"
                   required
+                  disabled
                   placeholder="Enter your account"
                 ></b-form-input>
               </b-col>
@@ -29,7 +30,7 @@
               <b-col sm="8">
                 <b-form-input
                   id="input-2"
-                  v-model="newAccount.password"
+                  v-model="curAccount.password"
                   required
                   placeholder="Enter your password"
                   type="password"
@@ -52,10 +53,11 @@
               </b-col>
               </b-row>
               <br>
-              <b-button type="submit" variant="primary">Create</b-button>
+              <b-button type="submit" variant="primary">Update</b-button>
             </b-form>
             <i :hidden="!warnning" :style="{ color: 'red' }"> your password does not match!</i>
           </b-jumbotron>
+          <b-button variant="link" @click="todoTask"> <i> back to your to do tasks </i> </b-button>
         </b-col>
       </b-row>
     </b-container>
@@ -73,9 +75,10 @@ export default {
   name: 'NewAccount',
   data () {
     return {
-      newAccount: {
+      curAccount: {
         userName: '',
-        password: ''
+        password: '',
+        id: ''
       },
       confirmPassword: '',
       warnning: false,
@@ -88,19 +91,26 @@ export default {
   },
   methods: {
     handleSubmit () {
-      if (this.newAccount.password !== this.confirmPassword) {
+      if (this.curAccount.password !== this.confirmPassword) {
         this.warnning = true
       } else {
         this.warnning = false
       }
       if (!this.warnning) {
-        axios.post('http://localhost:8081/core_spring/create_user', {
-          userName: this.newAccount.userName,
-          password: this.newAccount.password
+        axios.put('http://localhost:8081/core_spring/auth/update_user', {
+          userName: this.curAccount.userName,
+          password: this.curAccount.password,
+          id: this.curAccount.id
+        },
+        {
+          headers: {
+            Authorization: window.localStorage.getItem('token')
+          }
         })
           .then((response) => {
-            alert(response.data)
-            if (response.data === 'created successfully!') {
+            if (response.data === 'updated successfully') {
+              alert(response.data + ', please login again')
+              localStorage.removeItem('token')
               this.$router.push('/my-todolist.com/auth/login')
             } else {
               alert('something wrong! :<')
@@ -110,7 +120,25 @@ export default {
             alert(error)
           })
       }
+    },
+    todoTask () {
+      this.$router.push('/my-todolist/app/todo_tasks')
     }
+  },
+  mounted () {
+    axios.get('http://localhost:8081/core_spring/auth/get_user_profile', {
+      headers: {
+        Authorization: window.localStorage.getItem('token')
+      }
+    })
+      .then((response) => {
+        console.log(response.data)
+        this.curAccount = response.data
+      })
+      .catch((error) => {
+        alert(error)
+        this.$router.push('/my-todolist.com/auth/login')
+      })
   }
 }
 </script>

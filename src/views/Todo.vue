@@ -4,6 +4,8 @@
       <b-container>
         <b-row>
           <b-col sm="6" offset="3">
+            Hi, {{ user.userName }}!
+            <br>
             <b-jumbotron>
               <b-form>
                 <b-form-group id="input-group">
@@ -34,7 +36,8 @@
             </b-jumbotron>
           </b-col>
         </b-row>
-        <b-button variant="outline-primary" @click="logOut">log out</b-button>
+        <b-button variant="link" @click="logOut">log out</b-button>
+        <b-button variant="link" @click="yourAccount">your account</b-button>
       </b-container>
       <Footer/>
     </div>
@@ -50,6 +53,11 @@ export default {
     return {
       inTodoList: false,
       inFinishedList: false,
+      user: {
+        id: '',
+        userName: '',
+        password: ''
+      },
       task: {
         id: 0,
         taskContent: '',
@@ -292,6 +300,9 @@ export default {
     logOut () {
       localStorage.removeItem('token')
       this.$router.push('/my-todolist.com/auth/login')
+    },
+    yourAccount () {
+      this.$router.push('/my-todolist/app/edit_account')
     }
   },
   mounted () {
@@ -302,6 +313,7 @@ export default {
     })
       .then((response) => {
         console.log(response.data)
+        this.user = response.data
       })
       .catch((error) => {
         console.log(error)
