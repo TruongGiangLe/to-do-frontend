@@ -9,13 +9,13 @@
                 <b-form-group id="input-group">
                   <b-row>
                     <b-col sm="12">
-                      <b-form-textarea
-                        id="textarea-large"
+                      <b-form-input
+                        id="input-large"
                         size="lg"
-                        v-model="task.content"
+                        v-model="task.taskContent"
                         placeholder="to do task..."
                         @keyup.enter="addTodo"
-                      ></b-form-textarea>
+                      ></b-form-input>
                     </b-col>
                   </b-row>
                 </b-form-group>
@@ -34,6 +34,7 @@
             </b-jumbotron>
           </b-col>
         </b-row>
+        <b-button variant="outline-primary" @click="logOut">log out</b-button>
       </b-container>
       <Footer/>
     </div>
@@ -42,6 +43,7 @@
 import Header from '@/components/Header.vue'
 import Footer from '@/components/Footer.vue'
 import Display from '@/components/Display.vue'
+import axios from 'axios'
 
 export default {
   data () {
@@ -50,9 +52,10 @@ export default {
       inFinishedList: false,
       task: {
         id: 0,
-        content: '',
+        taskContent: '',
         status: 'to do',
-        beingEdited: false
+        beingEdited: false,
+        user_id: null
       },
       tasks: [
       ],
@@ -71,89 +74,146 @@ export default {
   },
   methods: {
     addTodo () {
-      const { id, content, status, beingEdited } = this.task
-      this.task.id++
-      const newTask = { id, content, status, beingEdited }
-      // cái này là syntax :), để clone 1 object
-      this.allTasks = [
-        newTask,
-        ...this.allTasks
-      ]
-      this.todoTasks = [newTask, ...this.todoTasks]
-      if (this.inTodoList) {
-        this.tasks = [...this.todoTasks]
-      } else if (this.inFinishedList) {
-        this.tasks = [...this.finishedTasks]
-      } else {
-        this.tasks = [...this.allTasks]
+      if (this.task.taskContent !== '' && this.task.taskContent !== null) {
+        axios.post('http://localhost:8081/core_spring/task/add_new_task', {
+          taskContent: this.task.taskContent
+        },
+        {
+          headers: {
+            Authorization: window.localStorage.getItem('token')
+          }
+        })
+          .then((response) => {
+            // đặt các thao tác ở trong này, nếu đặt ngoài thì state của this nó sẽ khác
+            this.task = response.data
+            console.log(this.task)
+            this.allTasks = [
+              { ...this.task },
+              ...this.allTasks
+            ]
+            this.todoTasks = [{ ...this.task }, ...this.todoTasks]
+            if (this.inTodoList) {
+              this.tasks = [...this.todoTasks]
+            } else if (this.inFinishedList) {
+              this.tasks = [...this.finishedTasks]
+            } else {
+              this.tasks = [...this.allTasks]
+            }
+            this.task.taskContent = ''
+          })
+          .catch(function (error) {
+            alert(error)
+          })
+
+        // const { id, taskContent, status, beingEdited } = this.task
+        // const newTask = { id, taskContent, status, beingEdited }
+        // cái này là syntax :), để clone 1 object
+        // console.log(newTask)
+        // const objClone = { ...this.task }
+        // console.log(objClone)
       }
-      this.task.content = ''
     },
-    completeTask (id) {
-      let i = 0
-      for (i = 0; i < this.tasks.length; i++) {
-        if (this.tasks[i].id === id) {
-          this.tasks[i].status = 'finished'
-          this.finishedTasks = [this.tasks[i], ...this.finishedTasks]
-          break
+    completeTask (id, taskContent) {
+      axios.put('http://localhost:8081/core_spring/task/update_task', {
+        id: id,
+        status: 'finished',
+        taskContent: taskContent
+      },
+      {
+        headers: {
+          Authorization: window.localStorage.getItem('token')
         }
-      }
-      for (i = 0; i < this.allTasks.length; i++) {
-        if (this.allTasks[i].id === id) {
-          this.allTasks[i].status = 'finished'
-          break
-        }
-      }
-      let index = 0
-      for (i = 0; i < this.todoTasks.length; i++) {
-        if (this.todoTasks[i].id === id) {
-          index = i
-          break
-        }
-      }
-      this.todoTasks.splice(index, 1)
-      if (this.inTodoList) {
-        this.tasks = [...this.todoTasks]
-      }
+      })
+        .then((response) => {
+          console.log(response.data)
+          if (response.data === 'updated successfully!') {
+            let i = 0
+            for (i = 0; i < this.tasks.length; i++) {
+              if (this.tasks[i].id === id) {
+                this.tasks[i].status = 'finished'
+                this.finishedTasks = [this.tasks[i], ...this.finishedTasks]
+                break
+              }
+            }
+            for (i = 0; i < this.allTasks.length; i++) {
+              if (this.allTasks[i].id === id) {
+                this.allTasks[i].status = 'finished'
+                break
+              }
+            }
+            let index = 0
+            for (i = 0; i < this.todoTasks.length; i++) {
+              if (this.todoTasks[i].id === id) {
+                index = i
+                break
+              }
+            }
+            this.todoTasks.splice(index, 1)
+            if (this.inTodoList) {
+              this.tasks = [...this.todoTasks]
+            }
+          } else {
+            alert('something wrong! :<')
+          }
+        })
+        .catch(function (error) {
+          alert(error)
+        })
     },
     deleteTask (id) {
-      let index = 0
-      let i = 0
-      let flag = false
-      for (i = 0; i < this.tasks.length; i++) {
-        if (this.tasks[i].id === id) {
-          index = i
-          if (this.tasks[i].status === 'to do') {
-            flag = true
+      axios.delete('http://localhost:8081/core_spring/task/delete_task/' + id,
+        {
+          headers: {
+            Authorization: window.localStorage.getItem('token')
           }
-          break
-        }
-      }
-      this.tasks.splice(index, 1)
-      for (i = 0; i < this.allTasks.length; i++) {
-        if (this.allTasks[i].id === id) {
-          index = i
-          break
-        }
-      }
-      this.allTasks.splice(index, 1)
-      if (flag) {
-        for (i = 0; i < this.todoTasks.length; i++) {
-          if (this.todoTasks[i].id === id) {
-            index = i
-            break
+        })
+        .then((response) => {
+          console.log(response.data)
+          if (response.data === 'deleted successfully!') {
+            let index = 0
+            let i = 0
+            let flag = false
+            for (i = 0; i < this.tasks.length; i++) {
+              if (this.tasks[i].id === id) {
+                index = i
+                if (this.tasks[i].status === 'to do') {
+                  flag = true
+                }
+                break
+              }
+            }
+            this.tasks.splice(index, 1)
+            for (i = 0; i < this.allTasks.length; i++) {
+              if (this.allTasks[i].id === id) {
+                index = i
+                break
+              }
+            }
+            this.allTasks.splice(index, 1)
+            if (flag) {
+              for (i = 0; i < this.todoTasks.length; i++) {
+                if (this.todoTasks[i].id === id) {
+                  index = i
+                  break
+                }
+              }
+              this.todoTasks.splice(index, 1)
+            } else {
+              for (i = 0; i < this.finishedTasks.length; i++) {
+                if (this.finishedTasks[i].id === id) {
+                  index = i
+                  break
+                }
+              }
+              this.finishedTasks.splice(index, 1)
+            }
+          } else {
+            alert('something wrong :<')
           }
-        }
-        this.todoTasks.splice(index, 1)
-      } else {
-        for (i = 0; i < this.finishedTasks.length; i++) {
-          if (this.finishedTasks[i].id === id) {
-            index = i
-            break
-          }
-        }
-        this.finishedTasks.splice(index, 1)
-      }
+        })
+        .catch(function (error) {
+          alert(error)
+        })
     },
     editTask (id) {
       let i = 0
@@ -164,29 +224,49 @@ export default {
         }
       }
     },
-    updateTask (id, newContent) {
-      let i = 0
-      for (i = 0; i < this.tasks.length; i++) {
-        if (this.tasks[i].id === id) {
-          this.tasks[i].content = newContent
-          this.tasks[i].beingEdited = false
-          break
+    updateTask (id, status, newContent) {
+      axios.put('http://localhost:8081/core_spring/task/update_task', {
+        id: id,
+        status: status,
+        taskContent: newContent
+      },
+      {
+        headers: {
+          Authorization: window.localStorage.getItem('token')
         }
-      }
-      for (i = 0; i < this.todoTasks.length; i++) {
-        if (this.todoTasks[i].id === id) {
-          this.todoTasks[i].content = newContent
-          this.todoTasks[i].beingEdited = false
-          break
-        }
-      }
-      for (i = 0; i < this.allTasks.length; i++) {
-        if (this.allTasks[i].id === id) {
-          this.allTasks[i].content = newContent
-          this.allTasks[i].beingEdited = false
-          break
-        }
-      }
+      })
+        .then((response) => {
+          console.log(response.data)
+          if (response.data === 'updated successfully!') {
+            let i = 0
+            for (i = 0; i < this.tasks.length; i++) {
+              if (this.tasks[i].id === id) {
+                this.tasks[i].taskContent = newContent
+                this.tasks[i].beingEdited = false
+                break
+              }
+            }
+            for (i = 0; i < this.todoTasks.length; i++) {
+              if (this.todoTasks[i].id === id) {
+                this.todoTasks[i].taskContent = newContent
+                this.todoTasks[i].beingEdited = false
+                break
+              }
+            }
+            for (i = 0; i < this.allTasks.length; i++) {
+              if (this.allTasks[i].id === id) {
+                this.allTasks[i].taskContent = newContent
+                this.allTasks[i].beingEdited = false
+                break
+              }
+            }
+          } else {
+            alert('something wrong :<')
+          }
+        })
+        .catch(function (error) {
+          alert(error)
+        })
     },
     getAllTasks () {
       this.allTasks.forEach(t => {
@@ -208,7 +288,46 @@ export default {
       this.tasks = [...this.finishedTasks]
       this.inTodoList = false
       this.inFinishedList = true
+    },
+    logOut () {
+      localStorage.removeItem('token')
+      this.$router.push('/my-todolist.com/auth/login')
     }
+  },
+  mounted () {
+    axios.get('http://localhost:8081/core_spring/auth/get_user_profile', {
+      headers: {
+        Authorization: window.localStorage.getItem('token')
+      }
+    })
+      .then((response) => {
+        console.log(response.data)
+      })
+      .catch((error) => {
+        console.log(error)
+        this.$router.push('/my-todolist.com/auth/login')
+      })
+
+    axios.get('http://localhost:8081/core_spring/auth/get_all_task', {
+      headers: {
+        Authorization: window.localStorage.getItem('token')
+      }
+    })
+      .then((response) => {
+        console.log(response)
+        this.allTasks = response.data
+        this.tasks = [...this.allTasks]
+        this.allTasks.forEach(t => {
+          if (t.status === 'to do') {
+            this.todoTasks = [t, ...this.todoTasks]
+          } else {
+            this.finishedTasks = [t, ...this.finishedTasks]
+          }
+        })
+      })
+      .catch((error) => {
+        console.log(error)
+      })
   }
 }
 </script>

@@ -5,7 +5,7 @@
       <b-row>
         <b-col sm="6" offset="3">
           <b-jumbotron>
-            <h3> Enter your account to login! </h3>
+            <h3> create your account </h3>
             <br>
             <b-form @submit.prevent="handleSubmit">
               <b-row>
@@ -15,7 +15,7 @@
               <b-col sm="8">
                 <b-form-input
                   id="input-1"
-                  v-model="loginData.username"
+                  v-model="newAccount.userName"
                   required
                   placeholder="Enter your account"
                 ></b-form-input>
@@ -29,7 +29,7 @@
               <b-col sm="8">
                 <b-form-input
                   id="input-2"
-                  v-model="loginData.password"
+                  v-model="newAccount.password"
                   required
                   placeholder="Enter your password"
                   type="password"
@@ -37,12 +37,27 @@
               </b-col>
               </b-row>
               <br>
-              <b-button type="submit" variant="primary">Login</b-button>
+              <b-row>
+              <b-col sm="4">
+                <label label-for="input-3"> Confirm your password: </label>
+              </b-col>
+              <b-col sm="8">
+                <b-form-input
+                  id="input-3"
+                  v-model="confirmPassword"
+                  required
+                  placeholder="Enter your password"
+                  type="password"
+                ></b-form-input>
+              </b-col>
+              </b-row>
+              <br>
+              <b-button type="submit" variant="primary">Create</b-button>
             </b-form>
+            <i :hidden="!warnning" :style="{ color: 'red' }"> your password does not match!</i>
           </b-jumbotron>
         </b-col>
       </b-row>
-      <b-button variant="link" class="button" @click="createNewAccount">create a new account</b-button>
     </b-container>
   <Footer/>
   </div>
@@ -55,14 +70,16 @@ import Footer from '@/components/Footer.vue'
 import axios from 'axios'
 
 export default {
-  name: 'Home',
-  inject: ['test'],
+  name: 'NewAccount',
   data () {
     return {
-      loginData: {
-        username: '',
+      newAccount: {
+        userName: '',
         password: ''
-      }
+      },
+      confirmPassword: '',
+      warnning: false,
+      output: ''
     }
   },
   components: {
@@ -71,24 +88,28 @@ export default {
   },
   methods: {
     handleSubmit () {
-      axios.post('http://localhost:8081/core_spring/login', {
-        userName: this.loginData.username,
-        password: this.loginData.password
-      })
-        .then((response) => {
-          if (response.data.length <= 28) {
+      if (this.newAccount.password !== this.confirmPassword) {
+        this.warnning = true
+      } else {
+        this.warnning = false
+      }
+      if (!this.warnning) {
+        axios.post('http://localhost:8081/core_spring/create_user', {
+          userName: this.newAccount.userName,
+          password: this.newAccount.password
+        })
+          .then((response) => {
             alert(response.data)
-          } else {
-            window.localStorage.setItem('token', response.data)
-            this.$router.push('/my-todolist/app/todo_tasks')
-          }
-        })
-        .catch(function (error) {
-          alert(error)
-        })
-    },
-    createNewAccount () {
-      this.$router.push('/my-todolist.com/auth/registration')
+            if (response.data === 'created successfully!') {
+              this.$router.push('/auth/login')
+            } else {
+              alert('something wrong! :<')
+            }
+          })
+          .catch(function (error) {
+            alert(error)
+          })
+      }
     }
   }
 }
